@@ -24,6 +24,7 @@ class ReactionNetwork:
     def to(device: str):
         self.S = self.S.to(device)
 
+
 def get_drift(model, network, x):
     g_x = model(x)
 
@@ -58,10 +59,10 @@ class Schloegl(ReactionNetwork):
         def bd_propensities(x):
             return torch.cat(
                 [
-                    torch.full((x.shape[0], 1), params["c3"]),  # 0 -> X
-                    params["c4"] * x,  # X -> 0
-                    params["c1"] * x * (x - 1) / 2,  # 2 X -> 3 X
-                    params["c2"] * x * (x - 1) * (x - 2) / 6,
+                    torch.full((x.shape[0], 1), c3),  # 0 -> X
+                    c4 * x,  # X -> 0
+                    c1 * x * (x - 1) / 2,  # 2 X -> 3 X
+                    c2 * x * (x - 1) * (x - 2) / 6,
                 ],
                 dim=1,
             )
