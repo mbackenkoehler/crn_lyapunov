@@ -29,7 +29,7 @@ class SmoothLyapunov(nn.Module):
             nn.Linear(hidden_dim, 1),
         ]
         if non_negative:
-            stack.append(nn.Softplus)
+            stack.append(nn.Softplus())
         self.net = nn.Sequential(*stack)
 
     def _get_mixing_weight(self, ref_val):
