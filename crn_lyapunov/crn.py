@@ -21,8 +21,9 @@ class ReactionNetwork:
     def num_species(self):
         return self.S.shape[1]
 
-    def to(device: str):
+    def to(self, device: str):
         self.S = self.S.to(device)
+        return self
 
 
 def get_drift(model, network, x):
@@ -209,3 +210,48 @@ class P53Oscillator(ReactionNetwork):
             ],
             dim=1,
         )
+
+
+class GeneSwitchNetwork(ReactionNetwork):
+    def __init__(self):
+        S = torch.tensor(
+            [
+                [-1, 1, 0, 0, 0],  # G -> G1
+                [1, -1, 0, 0, 0],  # G1 -> G
+                [0, -1, 1, 0, 0],  # G1 -> G2
+                [0, 1, -1, 0, 0],  # G2 -> G1
+                [0, 0, 0, 1, 0],  # Production (from G1)
+                [0, 0, 0, -1, 0],  # Degradation
+                [0, 0, 0, 0, 1],  # Production (from G1)
+                [0, 0, 0, 0, -1],  # Degradation
+            ]
+        ).float()
+        super().__init__(S, self._propensities)
+
+    # parameters
+    #     p1 = 6
+    #     p2 = 4
+    #
+    #     d1 = 0.05
+    #     d2 = 0.05
+    #
+    #     b1 = 0.006
+    #     b2 = 0.010
+    #
+    #     u1 = 0.1
+    #     u2 = 0.1
+    #
+
+    def _propensities(self, x):
+        G, G1, G2, P1, P2 = x[:, 0], x[:, 1], x[:, 2], x[:, 3], x[:, 4]
+
+        rates = torch.zeros((x.shape[0], self.num_reactions), device=x.device)
+        rates[:, 0] = 0.1 * G  # Activation
+        rates[:, 1] = 0.2 * G1  # Deactivation
+        rates[:, 2] = 0.05 * G1  # Transition to G2
+        rates[:, 3] = 0.1 * G2  # Transition back to G1
+        rates[:, 4] = 10.0 * G1  # Translation (only when in G1 state)
+        rates[:, 5] = 0.1 * P1  # Decay
+        rates[:, 4] = 8.0 * G2  # Translation (only when in G1 state)
+        rates[:, 5] = 0.1 * P2  # Decay
+        return rates
