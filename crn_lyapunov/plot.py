@@ -33,20 +33,23 @@ def plot_drift_1d(
     figsize: tuple[int] = (18, 5),
 ):
     x_range = torch.arange(n_max).float().view(-1, 1).detach()
+    x_dev = x_range.to(device)
+
     with torch.no_grad():
-        drift_vals = get_drift(model, net, x_range).detach().numpy()
+        drift_vals = get_drift(model, net, x_dev).detach().cpu().numpy()
         d_max = np.max(drift_vals)
-        v_vals = model(x_range).numpy()
-        alpha_vals = model._get_mixing_weight(ref(x_range)).numpy()
+        v_vals = model(x_dev).detach().cpu().numpy()
+        alpha_vals = model._get_mixing_weight(ref(x_dev)).detach().cpu().numpy()
+        ref_vals = ref(x_dev).detach().cpu().numpy()
 
     fig, axes = plt.subplots(1, 3, figsize=figsize)
 
-    x_range = x_range.detach()
+    x_plot = x_range.cpu().numpy()
 
-    axes[0].plot(x_range, v_vals, label="Learned V(x)", color="blue")
+    axes[0].plot(x_plot, v_vals, label="Learned V(x)", color="blue")
     axes[0].plot(
-        x_range,
-        ref(x_range).numpy(),
+        x_plot,
+        ref_vals,
         "--",
         label="Reference",
         color="gray",
@@ -57,21 +60,20 @@ def plot_drift_1d(
     axes[0].set_yscale("log")
 
     eps = 5e-1
-    axes[1].plot(x_range, eps * drift_vals / drift_vals.max(), color="red")
+    axes[1].plot(x_plot, eps * drift_vals / drift_vals.max(), color="red")
     axes[1].axhline(0, color="k", linestyle="--")
     axes[1].axhline(eps - 1, color="g", linestyle="--")
     axes[1].set_title("Drift")
     axes[1].set_xlabel("Population x")
     axes[1].set_ylim(-1.5, eps + 0.1)
 
-    axes[2].plot(x_range, alpha_vals, color="green")
+    axes[2].plot(x_plot, alpha_vals, color="green")
     axes[2].set_title("Mixing Weight $\\gamma$")
     axes[2].set_xlabel("Population x")
-    # axes[2].set_ylabel("0 = Neural, 1 = Reference")
 
     if adv_population is not None:
         for ax in axes:
-            sns.rugplot(adv_population, ax=ax, legend=False)
+            sns.rugplot(adv_population.cpu(), ax=ax, legend=False)
 
     return axes
 
@@ -83,8 +85,9 @@ def plot_level_set_comparison(
     x_range = (
         torch.arange(start=0, end=x_max, step=max(1, x_max // 1000)).float().view(-1, 1)
     )
+    x_dev = x_range.to(device)
 
-    drift_aug = get_drift(model, network, x_range).detach().numpy().flatten()
+    drift_aug = get_drift(model, network, x_dev).detach().cpu().numpy().flatten()
     d_max_aug = np.max(drift_aug)
     ratio_aug = drift_aug / d_max_aug
 
@@ -97,13 +100,17 @@ def plot_level_set_comparison(
             return self.f(x)
 
     drift_ref = (
-        get_drift(RefWrapper(reference_fn), network, x_range).detach().numpy().flatten()
+        get_drift(RefWrapper(reference_fn), network, x_dev)
+        .detach()
+        .cpu()
+        .numpy()
+        .flatten()
     )
     d_max_ref = np.max(drift_ref)
     ratio_ref = drift_ref / d_max_ref
 
     eps_vals = np.logspace(min_level, 0, 300)
-    X, E = np.meshgrid(x_range.numpy().flatten(), eps_vals)
+    X, E = np.meshgrid(x_range.cpu().numpy().flatten(), eps_vals)
 
     thresholds = 1.0 - (1.0 / E)
 
@@ -133,10 +140,10 @@ def plot_drift_2d(
 
     x_mesh, y_mesh = torch.meshgrid(x_range, y_range, indexing="xy")
 
-    x_grid = torch.stack([x_mesh.flatten(), y_mesh.flatten()], dim=1).to(device).float()
+    x_grid = torch.stack([x_mesh.flatten(), y_mesh.flatten()], dim=1).float().to(device)
 
     with torch.no_grad():
-        grid_drift = get_drift(model, net, x_grid).cpu().numpy()
+        grid_drift = get_drift(model, net, x_grid).detach().cpu().numpy()
 
     drift_heatmap_data = grid_drift.reshape(num_points, num_points) / grid_drift.max()
 
@@ -147,10 +154,10 @@ def plot_drift_2d(
         else drift_heatmap_data,
         origin="lower",
         extent=[
-            x_range.min(),
-            x_range.max(),
-            y_range.min(),
-            y_range.max(),
+            float(x_range.min()),
+            float(x_range.max()),
+            float(y_range.min()),
+            float(y_range.max()),
         ],
         cmap="viridis",
         aspect="auto",
@@ -189,15 +196,14 @@ def plot_hist_2d(
 
     x_mesh, y_mesh = torch.meshgrid(x_range, y_range, indexing="xy")
 
-    x_grid = torch.stack([x_mesh.flatten(), y_mesh.flatten()], dim=1).float()
+    x_grid = torch.stack([x_mesh.flatten(), y_mesh.flatten()], dim=1).float().to(device)
 
     with torch.no_grad():
-        grid_drift = get_drift(model, net, x_grid).cpu().numpy()
+        grid_drift = get_drift(model, net, x_grid).detach().cpu().numpy()
 
     drift_heatmap_data = grid_drift.reshape(num_points, num_points) / grid_drift.max()
     cum_prob = np.zeros_like(drift_heatmap_data)
 
-    # assume these are stricltly increasing
     for eps in np.logspace(min_eps, 0, 100):
         cum_prob[np.where(drift_heatmap_data * eps > eps - 1)] = eps
 
@@ -205,10 +211,10 @@ def plot_hist_2d(
         np.log(cum_prob) if log_prob else cum_prob,
         origin="lower",
         extent=[
-            x_range.min(),
-            x_range.max(),
-            y_range.min(),
-            y_range.max(),
+            float(x_range.min()),
+            float(x_range.max()),
+            float(y_range.min()),
+            float(y_range.max()),
         ],
         cmap="viridis",
         aspect="auto",
@@ -241,7 +247,6 @@ def plot_performances(sizes: pd.DataFrame, ax=None):
         sizes["size_ref"] / sizes["size_aug"],
         "^k:",
         label=r"improvement ratio",
-        # lw=1,
     )
 
     tax.set_xscale("log")

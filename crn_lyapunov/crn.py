@@ -32,7 +32,9 @@ class BirthDeath(ReactionNetwork):
         S_matrix = torch.tensor([[1.0], [-1.0]])
 
         def bd_propensities(x):
-            return torch.cat([torch.full((x.shape[0], 1), mu), gamma * x], dim=1)
+            return torch.cat(
+                [torch.full((x.shape[0], 1), mu, device=x.device), gamma * x], dim=1
+            )
 
         super().__init__(S_matrix, bd_propensities)
 
@@ -44,7 +46,7 @@ class Schloegl(ReactionNetwork):
         def bd_propensities(x):
             return torch.cat(
                 [
-                    torch.full((x.shape[0], 1), c3),  # 0 -> X
+                    torch.full((x.shape[0], 1), c3, device=x.device),  # 0 -> X
                     c4 * x,  # X -> 0
                     c1 * x * (x - 1) / 2,  # 2 X -> 3 X
                     c2 * x * (x - 1) * (x - 2) / 6,
@@ -75,9 +77,9 @@ class ParBD(ReactionNetwork):
 
         return torch.cat(
             [
-                torch.full_like(X, self.alpha),
+                torch.full_like(X, self.alpha, device=x.device),
                 self.beta * X,
-                torch.full_like(Y, self.alpha),
+                torch.full_like(Y, self.alpha, device=x.device),
                 self.beta * Y,
             ],
             dim=1,
@@ -143,7 +145,9 @@ class LotkaVolterra(ReactionNetwork):
                 self.alpha * prey,  # Prey birth
                 self.beta * prey * predator,  # Predation
                 self.gamma * predator,  # Predator death
-                torch.full_like(prey, self.eps),  # Prey materialization
+                torch.full_like(
+                    prey, self.eps, device=x.device
+                ),  # Prey materialization
                 self.eps * prey,  # Prey-predator conversion
                 self.delta * prey * (prey - 1),  # 2X -> X
             ],
@@ -185,7 +189,7 @@ class P53Oscillator(ReactionNetwork):
 
         return torch.cat(
             [
-                torch.full_like(p53, self.k1),  # k1
+                torch.full_like(p53, self.k1, device=x.device),  # k1
                 self.k2 * p53,  # k2
                 self.k4 * p53,  # k4
                 a4,  # alpha4
@@ -278,9 +282,9 @@ class Competition(ReactionNetwork):
 
         return torch.cat(
             [
-                torch.full_like(X, self.k1),
+                torch.full_like(X, self.k1, device=x.device),
                 self.k2 * X,
-                torch.full_like(Y, self.k1),
+                torch.full_like(Y, self.k1, device=x.device),
                 self.k2 * Y,
                 self.k3 * X * (X - 1) * Y,
                 self.k3 * Y * (Y - 1) * X,

@@ -79,7 +79,7 @@ class TightLoss(DriftLoss):
         d_norm = self._norm(drift_combined)
         if self.n_adv is not None:
             if self._mask is None:
-                self._mask = torch.ones(len(drift_combined))
+                self._mask = torch.ones(len(drift_combined), device=xs.device)
                 self._mask[: self.n_adv] = self.adv_weight
             d_norm = d_norm * self._mask
         loss = torch.mean(torch.exp(self.k * d_norm))
