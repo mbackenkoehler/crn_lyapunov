@@ -8,15 +8,8 @@ import numpy as np
 import tqdm.auto as tqdm
 
 from .smooth_lyapunov import SmoothLyapunov
-from .crn import get_drift, ReactionNetwork
-
-device = torch.device(
-    "cuda"
-    if torch.cuda.is_available()
-    else "mps"
-    if torch.backends.mps.is_available()
-    else "cpu"
-)
+from .crn import ReactionNetwork
+from .utils import device, get_drift
 
 
 class Adversary:

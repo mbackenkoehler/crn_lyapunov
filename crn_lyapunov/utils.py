@@ -4,7 +4,6 @@ import pandas as pd
 import torch
 import tqdm.auto as tqdm
 
-from crn_lyapunov.crn import get_drift
 
 device = torch.device(
     "cuda"
@@ -13,6 +12,23 @@ device = torch.device(
     if torch.backends.mps.is_available()
     else "cpu"
 )
+
+
+def get_drift(model, network, x):
+    g_x = model(x)
+
+    drift = g_x * 0.0
+
+    rates = network.propensities(x)
+
+    for j in range(network.num_reactions):
+        v_j = network.S[j]
+        x_next = torch.clamp(x + v_j, min=0)
+        g_next = model(x_next)
+
+        drift = drift + rates[:, j : j + 1] * (g_next - g_x)
+
+    return drift
 
 
 def get_grid_chunks(ranges, chunk_size):

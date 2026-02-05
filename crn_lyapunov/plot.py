@@ -7,16 +7,8 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 import seaborn as sns
 
-from .crn import ReactionNetwork, get_drift
-
-
-device = torch.device(
-    "cuda"
-    if torch.cuda.is_available()
-    else "mps"
-    if torch.backends.mps.is_available()
-    else "cpu"
-)
+from .crn import ReactionNetwork
+from .utils import device, get_drift
 
 
 def plot_loss_traj(h_loss, h_dmax):

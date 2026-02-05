@@ -2,13 +2,14 @@ from collections.abc import Callable
 
 import torch
 
+from .utils import device
+
 
 class ReactionNetwork:
     def __init__(
         self,
         stoichiometry: torch.Tensor,
         propensities: Callable[[torch.Tensor], torch.Tensor],
-        device: str = "cpu",
     ):
         self.S = stoichiometry.to(device)
         self.propensities = propensities
@@ -24,23 +25,6 @@ class ReactionNetwork:
     def to(self, device: str):
         self.S = self.S.to(device)
         return self
-
-
-def get_drift(model, network, x):
-    g_x = model(x)
-
-    drift = g_x * 0.0
-
-    rates = network.propensities(x)
-
-    for j in range(network.num_reactions):
-        v_j = network.S[j]
-        x_next = torch.clamp(x + v_j, min=0)
-        g_next = model(x_next)
-
-        drift = drift + rates[:, j : j + 1] * (g_next - g_x)
-
-    return drift
 
 
 class BirthDeath(ReactionNetwork):
