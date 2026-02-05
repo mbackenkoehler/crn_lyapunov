@@ -72,7 +72,7 @@ class Schloegl(ReactionNetwork):
 
 
 class ParBD(ReactionNetwork):
-    def __init__(self):
+    def __init__(self, alpha=1, beta=0.01):
         S = torch.tensor(
             [
                 [1.0, 0.0],
@@ -83,8 +83,8 @@ class ParBD(ReactionNetwork):
         )
         super().__init__(S, self._propensities)
 
-        self.alpha = 1.0
-        self.beta = 0.01
+        self.alpha = alpha
+        self.beta = beta
 
     def _propensities(self, x):
         X, Y = x[:, 0:1], x[:, 1:2]
@@ -255,3 +255,51 @@ class GeneSwitchNetwork(ReactionNetwork):
         rates[:, 4] = 8.0 * G2  # Translation (only when in G1 state)
         rates[:, 5] = 0.1 * P2  # Decay
         return rates
+
+
+class Competition(ReactionNetwork):
+    """
+    parameters
+        k1 = 1000.0
+        k2 = 1.0
+        k3 = 0.00001
+
+    species X Y
+
+    reactions
+        0 -> X @ k1;
+        X -> 0 @ k2 * X;
+        0 -> Y @ k1;
+        Y -> 0 @ k2 * Y;
+        2 X + Y -> 2 X @ k3 * X * (X - 1) * Y;
+        X + 2 Y -> 2 Y @ k3 * X * Y * (Y - 1);
+
+    init
+        X = 0
+        Y = 0
+    """
+
+    def __init__(self, k1=1000.0, k2=1.0, k3=0.00001):
+        S = torch.tensor(
+            [[1.0, 0.0], [-1.0, 0.0], [0.0, 1.0], [0.0, -1.0], [0.0, -1.0], [-1.0, 0.0]]
+        )
+        super().__init__(S, self._propensities)
+
+        self.k1 = k1
+        self.k2 = k2
+        self.k3 = k3
+
+    def _propensities(self, x):
+        X, Y = x[:, 0:1], x[:, 1:2]
+
+        return torch.cat(
+            [
+                torch.full_like(X, self.k1),
+                self.k2 * X,
+                torch.full_like(Y, self.k1),
+                self.k2 * Y,
+                self.k3 * X * (X - 1) * Y,
+                self.k3 * Y * (Y - 1) * X,
+            ],
+            dim=1,
+        )

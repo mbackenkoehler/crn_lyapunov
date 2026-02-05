@@ -1,4 +1,5 @@
 import abc
+from collections.abc import Callable
 
 import torch
 from torch import nn
@@ -24,11 +25,18 @@ class DriftLoss(nn.Module, abc.ABC):
         d_max_smooth = torch.logsumexp(drift, dim=0)
         return F.softplus(d_max_smooth) + 1e-4
 
+    def _update_max_drift(self, drift: torch.Tensor):
+        d_max_stable = self._max_drift_util(drift_combined)
+        with torch.no_grad():
+            self._update_d_max(d_max_stable)
+
     @property
     def max_drift(self) -> float:
         return self._d_max.detach().item()
 
-    def _update_d_max(self, d_max_stable: torch.Tensor):
+    @torch.no_grad()
+    def _update_d_max(self, drift_combined: torch.Tensor):
+        d_max_stable = self._max_drift_util(drift_combined)
         if self._d_max.item() < 0:
             self._d_max.data = d_max_stable.detach()
         else:
@@ -36,17 +44,27 @@ class DriftLoss(nn.Module, abc.ABC):
                 self.gamma * self._d_max.data + (1 - self.gamma) * d_max_stable.detach()
             )
 
+    def _norm(self, drift_combined: torch.Tensor) -> torch.Tensor:
+        self._update_d_max(drift_combined)
+        return drift_combined / self._d_max
+
     @abc.abstractmethod
-    def forward(self, drift_combined: torch.Tensor) -> torch.Tensor:
+    def forward(self, drift_combined: torch.Tensor, xs: torch.Tensor) -> torch.Tensor:
         pass
+
+    def __str__(self):
+        return f"DriftLoss(gamma={self.gamma})"
 
 
 class MaxDrift(DriftLoss):
     def __init__(self):
         super().__init__(gamma=0.0)
 
-    def forward(self, drift_combined: torch.Tensor) -> torch.Tensor:
+    def forward(self, drift_combined: torch.Tensor, xs: torch.Tensor) -> torch.Tensor:
         return self._max_drift_util(drift_combined)
+
+    def __str__(self):
+        return f"MaxDrift(gamma={self.gamma})"
 
 
 class TightLoss(DriftLoss):
@@ -63,18 +81,33 @@ class TightLoss(DriftLoss):
         self._mask = None
         self.k = k
 
-    def forward(self, drift_combined: torch.Tensor) -> torch.Tensor:
-        d_max_stable = self._max_drift_util(drift_combined)
-        with torch.no_grad():
-            self._update_d_max(d_max_stable)
-
-        d_norm = drift_combined / self._d_max
+    def forward(self, drift_combined: torch.Tensor, xs: torch.Tensor) -> torch.Tensor:
+        d_norm = self._norm(drift_combined)
         if self.n_adv is not None:
             if self._mask is None:
                 self._mask = torch.ones(len(drift_combined))
                 self._mask[: self.n_adv] = self.adv_weight
             d_norm = d_norm * self._mask
         loss = torch.mean(torch.exp(self.k * d_norm))
+        return loss
+
+    def __str__(self):
+        return (
+            f"TightLoss(k={self.k}, adv_weight={self.adv_weight}, gamma={self.gamma})"
+        )
+
+
+class PropertyLoss(DriftLoss):
+    def __init__(self, indicator: Callable, gamma: float = 0.0, k: float = 2.0):
+        super().__init__(gamma)
+        self.indicator = indicator
+        self.k = 2.0
+
+    def forward(self, drift_combined: torch.Tensor, xs: torch.Tensor) -> torch.Tensor:
+        d_norm = self._norm(drift_combined)
+        with torch.no_grad():
+            idcs = self.indicator(xs)
+        loss = torch.mean(torch.exp(self.k * d_norm[idcs]))
         return loss
 
 
@@ -91,12 +124,8 @@ class CombinedLoss(DriftLoss):
         self.n_ignore = n_ignore
         self.k = k
 
-    def forward(self, drift_combined: torch.Tensor) -> torch.Tensor:
-        d_max_stable = self._max_drift_util(drift_combined)
-        with torch.no_grad():
-            self._update_d_max(d_max_stable)
-
-        d_norm = drift_combined / self._d_max
+    def forward(self, drift_combined: torch.Tensor, xs: torch.Tensor) -> torch.Tensor:
+        d_norm = self._norm(drift_combined)
         if self.n_ignore is not None:
             d_norm = d_norm[: self.n_ignore]
         loss = torch.mean(torch.exp(self.k * d_norm)) + self.dmax_weight * d_max_stable
@@ -117,15 +146,14 @@ class ProbabilityLoss(DriftLoss):
         )
         self.register_buffer("steepness", torch.tensor(float(steepness), device=device))
 
-    def forward(self, drift_combined: torch.Tensor) -> torch.Tensor:
-        d_max_stable = self._max_drift_util(drift_combined)
-        with torch.no_grad():
-            self._update_d_max(d_max_stable)
-
-        d_norm = drift_combined / self._d_max
+    def forward(self, drift_combined: torch.Tensor, xs: torch.Tensor) -> torch.Tensor:
+        d_norm = self._norm(drift_combined)
         loss = torch.sum(
             F.sigmoid(
                 (d_norm * self.probability + (self.probability - 1) + 1) * steepness
             )
         )
         return loss + self.d_max_weight * d_max_stable
+
+    def __str__(self):
+        return f"ProbabilityLoss(probability={self.probability}, steepness={self.steepness}, d_max_weight={self.d_max_weight}, gamma={self.gamma})"
