@@ -519,15 +519,24 @@ def run_p53():
 # main
 # -----------------------------------------------------------------------------
 if __name__ == "__main__":
-    print(10 * "#" + " Birth-Death", file=sys.stderr)
-    run_birth_death()
-    print(10 * "#" + " Schlögl", file=sys.stderr)
-    run_schloegl()
-    print(10 * "#" + " Parallel BD", file=sys.stderr)
-    plot_parbd_sizes([run_parbd(k) for k in [0.1, 1, 10, 100]])
-    print(10 * "#" + " Competition", file=sys.stderr)
-    run_competition()
-    print(10 * "#" + " Toggle", file=sys.stderr)
-    run_toggle()
-    print(10 * "#" + " p53", file=sys.stderr)
-    run_p53()
+    match sys.argv[1]:
+        case "bd":
+            print(10 * "#" + " Birth-Death", file=sys.stderr)
+            run_birth_death()
+        case "schloegl":
+            print(10 * "#" + " Schlögl", file=sys.stderr)
+            run_schloegl()
+        case "parbd":
+            print(10 * "#" + " Parallel BD", file=sys.stderr)
+            plot_parbd_sizes([run_parbd(k) for k in [0.1, 1, 10, 100]])
+        case "comp":
+            print(10 * "#" + " Competition", file=sys.stderr)
+            run_competition()
+        case "toggle":
+            print(10 * "#" + " Toggle", file=sys.stderr)
+            run_toggle()
+        case "p53":
+            print(10 * "#" + " p53", file=sys.stderr)
+            run_p53()
+        case _:
+            print("unknown experiment:", sys.argv[1], file=sys.stderr)
