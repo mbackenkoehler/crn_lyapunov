@@ -102,6 +102,7 @@ def performance_table(
                     max_drift_aug=dmax,
                     min_eps=min_eps,
                     chunk_size=chunk_size,
+                    output_dir=output_dir,
                 )
 
             counts_aug += (
