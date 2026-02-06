@@ -265,7 +265,7 @@ def plot_parbd_sizes(sizes_all):
     plt.xlabel(r"threshold $\epsilon$")
     plt.legend()
     plt.tight_layout()
-    savefig(OUTPUT / parbd, "parbd_improvement.pdf")
+    savefig(OUTPUT / "parbd", "parbd_improvement.pdf")
 
 
 # -----------------------------------------------------------------------------
