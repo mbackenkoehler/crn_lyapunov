@@ -13,4 +13,6 @@ uv run python scripts/experiments.py "schloegl" &
 uv run python scripts/experiments.py "parbd" &
 uv run python scripts/experiments.py "comp" &
 uv run python scripts/experiments.py "toggle" &
-uv run python scripts/experiments.py "p54" &
+uv run python scripts/experiments.py "p53" &
+
+wait
