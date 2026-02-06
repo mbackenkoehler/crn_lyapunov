@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import sys
 from pathlib import Path
 import torch
 import numpy as np
@@ -159,8 +160,12 @@ def run_schloegl():
         model, net, quadratic_ref, [1_000_000], min_eps=-10, output_dir=model_dir
     )
 
+    sizes = performance_table(model, net, quadratic_ref, [1_000_000], min_eps=-10)
+    fig, ax = plt.subplots(1, 1, figsize=(4, 3))
     plot_performances(sizes, ax=ax)
-    savefig(model_dir, "setsizes.pdf")
+    ax.set_xlabel("Threshold $\\epsilon$")
+    plt.tight_layout()
+    plt.savefig(model_dir / "setsizes.pdf")
 
     plot_drift_1d(
         600, model, quadratic_ref, net, adv_population=adv.population, figsize=(8, 2)
@@ -444,15 +449,16 @@ def run_p53():
 # main
 # -----------------------------------------------------------------------------
 if __name__ == "__main__":
-    print(10 * "#" + " Birth-Death")
+    print(10 * "#" + " Birth-Death", file=sys.stderr)
     run_birth_death()
-    print(10 * "#" + " Schlögl")
+    print(10 * "#" + " Schlögl", file=sys.stderr)
     run_schloegl()
-    print(10 * "#" + " Parallel BD")
+    print(10 * "#" + " Parallel BD", file=sys.stderr)
     for k in [0.1, 1, 10, 100]:
         run_parbd(k)
-    print(10 * "#" + " Competition")
+    print(10 * "#" + " Competition", file=sys.stderr)
     run_competition()
-    print(10 * "#" + " Toggle")
+    print(10 * "#" + " Toggle", file=sys.stderr)
     run_toggle()
+    print(10 * "#" + " p53", file=sys.stderr)
     run_p53()
