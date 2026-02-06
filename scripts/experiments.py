@@ -193,7 +193,7 @@ def run_parbd(k=1):
     model_parbd, adv_parbd, h_loss, h_dmax = train_tight_sets(
         net_parbd,
         ref_g,
-        TightLoss(k=0.1),
+        TightLoss(k=k),
         steps_evolve=5,
         hidden_dim=128,
         n_adv_samples=2**8,
@@ -225,6 +225,48 @@ def run_parbd(k=1):
     ax.set_xlabel("Threshold $\\epsilon$")
     savefig(model_dir, "setsizes.pdf")
 
+    return sizes
+
+
+def plot_parbd_sizes(sizes_all):
+    sizes_p1, sizes_1, sizes_10, sizes_100 = sizes_all
+    plt.figure(figsize=(4, 3))
+    plt.plot(
+        sizes_p1["epsilon"],
+        sizes_p1["size_ref"] / sizes_p1["size_aug"],
+        "1r:",
+        lw=1,
+        label=r"k=0.1",
+    )
+    plt.plot(
+        sizes_1["epsilon"],
+        sizes_1["size_ref"] / sizes_1["size_aug"],
+        "+k:",
+        lw=1,
+        label=r"k=1",
+    )
+    plt.plot(
+        sizes_10["epsilon"],
+        sizes_10["size_ref"] / sizes_10["size_aug"],
+        "xb:",
+        lw=1,
+        label=r"k=10",
+    )
+    plt.plot(
+        sizes_100["epsilon"],
+        sizes_100["size_ref"] / sizes_100["size_aug"],
+        "2g:",
+        lw=1,
+        label=r"k=100",
+    )
+    plt.xscale("log")
+    plt.yscale("log")
+    plt.ylabel("improvement ratio")
+    plt.xlabel(r"threshold $\epsilon$")
+    plt.legend()
+    plt.tight_layout()
+    savefig(OUTPUT / parbd, "parbd_improvement.pdf")
+
 
 # -----------------------------------------------------------------------------
 # competition
@@ -248,13 +290,29 @@ def run_competition():
         n_adv_samples=2**10,
         n_rand_samples=2**13,
         max_n=1500,
-        n_epochs=5000,
+        n_epochs=10_000,
         lr=1e-3,
         output_path=model_dir,
     )
 
     plot_loss_traj(h_loss, h_dmax)
     savefig(model_dir, "loss.pdf")
+
+    sizes = performance_table(
+        model_comp,
+        net_comp,
+        ref_g,
+        [10_000, 10_000],
+        max_drift_ref=103.0,
+        max_drift_aug=0,
+        chunk_size=1_000_000,
+        min_eps=-3,
+        output_dir=model_dir,
+    )
+    fig, ax = plt.subplots(figsize=(4, 3))
+    plot_performances(sizes, ax=ax)
+    ax.set_xlabel("Threshold $\\epsilon$")
+    savefig(model_dir, "setsizes.pdf")
 
     plot_hist_2d(
         model_comp,
@@ -267,6 +325,18 @@ def run_competition():
         log_prob=False,
     )
     savefig(model_dir, "hist2d.pdf")
+
+    plot_hist_2d(
+        model_comp,
+        net_comp,
+        1500,
+        1500,
+        4e2,
+        min_eps=-8,
+        num_points=100,
+        log_prob=log,
+    )
+    savefig(model_dir, "hist2d_log.pdf")
 
     plot_drift_2d(model_comp, net_comp, 1500, 1500, log_drift=True, adversary=adv_comp)
     savefig(model_dir, "drift2d.pdf")
@@ -294,7 +364,7 @@ def run_toggle():
         n_adv_samples=2**10,
         n_rand_samples=2**10,
         max_n=1000,
-        n_epochs=1000,
+        n_epochs=10_000,
         lr=1e-3,
         output_path=model_dir,
     )
@@ -378,8 +448,8 @@ def run_p53():
         TightLoss(k=1),
         steps_evolve=10,
         hidden_dim=1024,
-        n_adv_samples=2**14,
-        n_rand_samples=2**14,
+        n_adv_samples=2**15,
+        n_rand_samples=2**15,
         max_n=1000,
         n_epochs=10000,
         lr=1e-3,
@@ -387,18 +457,6 @@ def run_p53():
     )
     plot_loss_traj(h_loss, h_dmax)
     savefig(model_dir, "loss.pdf")
-
-    sizes = performance_table(
-        model_p53,
-        net_p53,
-        p53_reference_g,
-        [100_000, 100_000, 100_000],
-        min_eps=-2,
-        chunk_size=1_000_000,
-        output_dir=model_dir,
-    )
-    plot_performances(sizes)
-    savefig(model_dir, "performance.pdf")
 
     fig = plt.figure()
     ax = fig.add_subplot(111, projection="3d")
@@ -442,7 +500,19 @@ def run_p53():
         points[:, 0], points[:, 1], points[:, 2], c=drift, cmap="viridis", s=1
     )
 
-    savefig(model_dir, "bounded_0.1p.pdf")
+    savefig(model_dir, "bounds_p1.pdf")
+
+    sizes = performance_table(
+        model_p53,
+        net_p53,
+        p53_reference_g,
+        [1_000, 1_000, 1_000],
+        min_eps=-2,
+        chunk_size=1_000_000,
+        output_dir=model_dir,
+    )
+    plot_performances(sizes)
+    savefig(model_dir, "performance.pdf")
 
 
 # -----------------------------------------------------------------------------
@@ -454,8 +524,7 @@ if __name__ == "__main__":
     print(10 * "#" + " Schlögl", file=sys.stderr)
     run_schloegl()
     print(10 * "#" + " Parallel BD", file=sys.stderr)
-    for k in [0.1, 1, 10, 100]:
-        run_parbd(k)
+    plot_parbd_sizes([run_parbd(k) for k in [0.1, 1, 10, 100]])
     print(10 * "#" + " Competition", file=sys.stderr)
     run_competition()
     print(10 * "#" + " Toggle", file=sys.stderr)
