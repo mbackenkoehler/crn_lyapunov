@@ -240,6 +240,7 @@ def plot_performances(sizes: pd.DataFrame, ax=None):
     ax.set_yscale("log")
     ax.set_xscale("log")
     ax.set_ylabel("Set size")
+    ax.set_xlabel("Threshold $\\epsilon$")
 
     tax = ax.twinx()
     (l3,) = tax.plot(

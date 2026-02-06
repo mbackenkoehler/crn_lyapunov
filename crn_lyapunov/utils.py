@@ -52,6 +52,7 @@ def performance_table(
     max_drift_aug=None,
     min_eps=-4,
     chunk_size=1_000_000,
+    output_dir=None,
 ):
     total_states = np.prod(ranges)
     epsilons = torch.logspace(min_eps, 0, 20).to(device)
@@ -111,10 +112,15 @@ def performance_table(
             pbar2.update(len(chunk))
     pbar2.close()
 
-    return pd.DataFrame(
+    performance_df = pd.DataFrame(
         {
             "epsilon": epsilons.cpu().numpy(),
             "size_aug": counts_aug.cpu().numpy(),
             "size_ref": counts_ref.cpu().numpy(),
         }
     )
+
+    if output_dir is not None:
+        performance_df.to_csv(output_dir / "performance.csv")
+
+    return performance_df
