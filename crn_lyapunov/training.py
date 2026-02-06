@@ -135,7 +135,7 @@ def train_tight_sets(
             history_dmax.append(dmax)
 
         except KeyboardInterrupt:
-            print("Training interrupted by user.")
+            print("Training interrupted by user.", file=sys.stderr)
             break
 
     if output_path is not None:

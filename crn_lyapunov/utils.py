@@ -1,3 +1,5 @@
+import sys
+
 from itertools import product, islice
 import numpy as np
 import pandas as pd
@@ -77,7 +79,7 @@ def performance_table(
     if max_drift_ref is not None:
         max_d_ref = max_drift_ref
 
-    print(f"max D_aug={max_d_aug} max D_ref={max_d_ref}")
+    print(f"max D_aug={max_d_aug} max D_ref={max_d_ref}", file=sys.stderr)
 
     counts_aug = torch.zeros(len(epsilons), device=device)
     counts_ref = torch.zeros(len(epsilons), device=device)
@@ -90,7 +92,7 @@ def performance_table(
             dmax = d_aug.max()
             if dmax > max_d_aug:
                 pbar2.close()
-                print(f"Larger max D_aug={dmax} - Restarting...")
+                print(f"Larger max D_aug={dmax} - Restarting...", file=sys.stderr)
                 return performance_table(
                     model,
                     net,
