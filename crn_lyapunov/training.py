@@ -141,6 +141,7 @@ def train_tight_sets(
     if output_path is not None:
         output_path.mkdir(exist_ok=True, parents=True)
         torch.save(lyap_model.state_dict(), output_path / "model.pt")
+        torch.save(adv.population, output_path / "adversary_pop.pt")
         with open(output_path / "history_loss.npy", "wb") as f:
             np.save(f, np.array(history_loss))
         with open(output_path / "history_dmax.npy", "wb") as f:

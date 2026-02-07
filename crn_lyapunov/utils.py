@@ -50,8 +50,8 @@ def performance_table(
     net,
     ref_g,
     ranges,
-    max_drift_ref=None,
-    max_drift_aug=None,
+    max_drift_ref=0,
+    max_drift_aug=0,
     min_eps=-4,
     chunk_size=1_000_000,
     output_dir=None,
@@ -89,17 +89,16 @@ def performance_table(
         for chunk in get_grid_chunks(ranges, chunk_size):
             d_aug = get_drift(model, net, chunk).unsqueeze(1)
             d_ref = get_drift(ref_g, net, chunk).unsqueeze(1)
-            dmax = d_aug.max()
-            if dmax > max_d_aug:
+            if d_aug.max() > max_d_aug or d_ref.max() > max_d_ref:
                 pbar2.close()
-                print(f"Larger max D_aug={dmax} - Restarting...", file=sys.stderr)
+                print(f"Larger max drift - Restarting...", file=sys.stderr)
                 return performance_table(
                     model,
                     net,
                     ref_g,
                     ranges,
-                    max_drift_ref=max_drift_ref,
-                    max_drift_aug=dmax,
+                    max_drift_ref=max(d_ref.max(), max_drift_ref),
+                    max_drift_aug=max(d_aug.max(), max_drift_aug),
                     min_eps=min_eps,
                     chunk_size=chunk_size,
                     output_dir=output_dir,
@@ -125,5 +124,9 @@ def performance_table(
 
     if output_dir is not None:
         performance_df.to_csv(output_dir / "performance.csv")
+        with open(output_dir / "dmax_aug", "w") as f:
+            f.write(f"{max_drift_aug}")
+        with open(output_dir / "dmax_ref", "w") as f:
+            f.write(f"{max_drift_ref}")
 
     return performance_df
