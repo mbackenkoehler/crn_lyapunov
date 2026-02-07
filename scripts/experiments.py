@@ -321,7 +321,7 @@ def run_competition():
         1500,
         4e2,
         min_eps=-8,
-        num_points=100,
+        num_points=1000,
         log_prob=False,
     )
     savefig(model_dir, "hist2d.pdf")
@@ -333,7 +333,7 @@ def run_competition():
         1500,
         4e2,
         min_eps=-8,
-        num_points=100,
+        num_points=1000,
         log_prob=log,
     )
     savefig(model_dir, "hist2d_log.pdf")
@@ -510,6 +510,7 @@ def run_p53():
         min_eps=-2,
         chunk_size=1_000_000,
         output_dir=model_dir,
+        max_drift_aug=dmax,
     )
     plot_performances(sizes)
     savefig(model_dir, "performance.pdf")
