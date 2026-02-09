@@ -284,13 +284,13 @@ def run_competition():
     model_comp, adv_comp, h_loss, h_dmax = train_tight_sets(
         net_comp,
         ref_g,
-        TightLoss(k=2),
+        TightLoss(k=1),
         steps_evolve=2,
         hidden_dim=512,
         n_adv_samples=2**10,
         n_rand_samples=2**13,
         max_n=1500,
-        n_epochs=10_000,
+        n_epochs=20_000,
         lr=1e-3,
         output_path=model_dir,
     )
@@ -315,6 +315,30 @@ def run_competition():
     savefig(model_dir, "setsizes.pdf")
 
     plot_hist_2d(
+        ref_g,
+        net_comp,
+        1500,
+        1500,
+        4e2,
+        min_eps=-8,
+        num_points=1000,
+        log_prob=False,
+    )
+    savefig(model_dir, "hist2d_ref.pdf")
+
+    plot_hist_2d(
+        ref_g,
+        net_comp,
+        1500,
+        1500,
+        4e2,
+        min_eps=-8,
+        num_points=1000,
+        log_prob=True,
+    )
+    savefig(model_dir, "hist2d_log_ref.pdf")
+
+    plot_hist_2d(
         model_comp,
         net_comp,
         1500,
@@ -334,7 +358,7 @@ def run_competition():
         4e2,
         min_eps=-8,
         num_points=1000,
-        log_prob=log,
+        log_prob=True,
     )
     savefig(model_dir, "hist2d_log.pdf")
 
@@ -448,10 +472,10 @@ def run_p53():
         TightLoss(k=1),
         steps_evolve=10,
         hidden_dim=1024,
-        n_adv_samples=2**15,
-        n_rand_samples=2**15,
-        max_n=1000,
-        n_epochs=10000,
+        n_adv_samples=2**13,
+        n_rand_samples=2**13,
+        max_n=3000,
+        n_epochs=10_000,
         lr=1e-3,
         output_path=model_dir,
     )
@@ -466,13 +490,13 @@ def run_p53():
             get_drift(model_p53, net_p53, adv_p53.population.to(device)).cpu().numpy()
         )
 
-    points = adv_p53.population.detach().numpy()
+    points = adv_p53.population.detach().cpu().numpy()
 
     sc = ax.scatter(
         points[:, 0],
         points[:, 1],
         points[:, 2],
-        c=drift.flatten() > 0,
+        c=drift.flatten(),
         cmap="viridis",
         s=5,
     )
@@ -486,7 +510,7 @@ def run_p53():
     ax = fig.add_subplot(111, projection="3d")
 
     n = 100000
-    points = eval_xs = torch.rand(n, 3) * torch.tensor([2000, 2000, 2000])
+    points = eval_xs = torch.rand(n, 3) * torch.tensor([300, 300, 300])
     with torch.no_grad():
         drift = get_drift(model_p53, net_p53, points.to(device)).cpu().numpy()
 
