@@ -510,7 +510,8 @@ def run_p53():
     ax = fig.add_subplot(111, projection="3d")
 
     n = 100000
-    points = eval_xs = torch.rand(n, 3) * torch.tensor([300, 300, 300])
+    points = torch.rand(n, 3) * torch.tensor([300, 300, 300])
+    points = torch.round(points)
     with torch.no_grad():
         drift = get_drift(model_p53, net_p53, points.to(device)).cpu().numpy()
 
