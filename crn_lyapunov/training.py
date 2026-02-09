@@ -1,3 +1,4 @@
+import sys
 import json
 from collections.abc import Callable
 from pathlib import Path
@@ -79,6 +80,17 @@ def sample_normal(max_n, n_rand_samples, n_species):
     ).float()
 
 
+def get_gradient_penalty(model, x):
+    x_req = x.detach().clone().requires_grad_(True)
+    y = model(x_req)
+
+    grad = torch.autograd.grad(
+        outputs=y.sum(), inputs=x_req, create_graph=True, retain_graph=True
+    )[0]
+
+    return grad.pow(2).sum(dim=1).mean()
+
+
 def train_tight_sets(
     network: ReactionNetwork,
     ref_g: Callable,
@@ -89,7 +101,9 @@ def train_tight_sets(
     n_epochs: int = 1000,
     steps_evolve: int = 1,
     hidden_dim: int = 64,
-    lr: float = 1e-4,
+    clip: float = 1e-1,
+    optimizer_kwargs: dict = {},
+    lr: float = 1e-3,
     seed: int = 0,
     non_negative: bool = False,
     sampler: Callable = None,
@@ -110,7 +124,7 @@ def train_tight_sets(
         non_negative=non_negative,
     ).to(device)
 
-    optimizer = optim.AdamW(lyap_model.parameters(), lr=lr)
+    optimizer = optim.Adam(lyap_model.parameters(), lr=lr, **optimizer_kwargs)
     history_loss, history_dmax = [], []
 
     for epoch in (pbar := tqdm.tqdm(range(n_epochs))):
@@ -127,6 +141,7 @@ def train_tight_sets(
             loss = loss_fn(drift_combined, x_combined)
 
             loss.backward()
+            torch.nn.utils.clip_grad_norm_(lyap_model.parameters(), clip)
             optimizer.step()
 
             dmax = loss_fn.max_drift

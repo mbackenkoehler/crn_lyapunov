@@ -23,14 +23,20 @@ class SmoothLyapunov(nn.Module):
 
         stack = [
             nn.Linear(input_dim, hidden_dim),
-            nn.Tanh(),
+            nn.SiLU(),
             nn.Linear(hidden_dim, hidden_dim),
-            nn.Tanh(),
+            nn.SiLU(),
             nn.Linear(hidden_dim, 1),
         ]
         if non_negative:
             stack.append(nn.Softplus())
+
         self.net = nn.Sequential(*stack)
+        for m in self.net.modules():
+            if isinstance(m, nn.Linear):
+                nn.init.kaiming_normal_(m.weight, a=0.1)
+                nn.init.constant_(m.bias, 0)
+
 
     def _get_mixing_weight(self, ref_val):
         magnitude = torch.sqrt(torch.clamp(ref_val, min=1e-6))
