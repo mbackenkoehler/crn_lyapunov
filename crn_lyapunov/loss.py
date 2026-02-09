@@ -64,10 +64,10 @@ class MaxDrift(DriftLoss):
 class TightLoss(DriftLoss):
     def __init__(
         self,
-        gamma: float = 0.0,
+        gamma: float = 0.99,
         n_adv: int = None,
         adv_weight: float = 1.0,
-        k: float = 2.0,
+        k: float = 1.0,
     ):
         super().__init__(gamma)
         self.n_adv = n_adv
