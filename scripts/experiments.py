@@ -68,10 +68,10 @@ def run_birth_death():
         n_adv_samples=16,
         n_rand_samples=16,
         max_n=700,
-        lr=1e-3,
+        lr=5e-4,
         hidden_dim=128,
         steps_evolve=1,
-        n_epochs=500,
+        n_epochs=50_000,
         non_negative=True,
         output_path=model_dir,
     )
@@ -146,9 +146,9 @@ def run_schloegl():
         n_adv_samples=8,
         n_rand_samples=8,
         max_n=500,
-        lr=1e-3,
+        lr=5e-4,
         hidden_dim=128,
-        n_epochs=1000,
+        n_epochs=50_000,
         non_negative=True,
         output_path=model_dir,
     )
@@ -199,8 +199,8 @@ def run_parbd(k=1):
         n_adv_samples=2**8,
         n_rand_samples=2**8,
         max_n=300,
-        n_epochs=10_000,
-        lr=1e-3,
+        n_epochs=100_000,
+        lr=5e-4,
         output_path=model_dir,
     )
 
@@ -236,7 +236,7 @@ def plot_parbd_sizes(sizes_all):
         sizes_p1["size_ref"] / sizes_p1["size_aug"],
         "1r:",
         lw=1,
-        label=r"k=0.1",
+        label=r"k=0.5",
     )
     plt.plot(
         sizes_1["epsilon"],
@@ -285,13 +285,13 @@ def run_competition():
         net_comp,
         ref_g,
         TightLoss(k=1),
-        steps_evolve=2,
+        steps_evolve=5,
         hidden_dim=512,
         n_adv_samples=2**10,
         n_rand_samples=2**13,
         max_n=1500,
-        n_epochs=20_000,
-        lr=1e-3,
+        n_epochs=200_000,
+        lr=5e-4,
         output_path=model_dir,
     )
 
@@ -303,7 +303,7 @@ def run_competition():
         net_comp,
         ref_g,
         [10_000, 10_000],
-        max_drift_ref=103.0,
+        max_drift_ref=0,
         max_drift_aug=0,
         chunk_size=1_000_000,
         min_eps=-3,
@@ -389,7 +389,7 @@ def run_toggle():
         n_rand_samples=2**10,
         max_n=1000,
         n_epochs=10_000,
-        lr=1e-3,
+        lr=5e-4,
         output_path=model_dir,
     )
 
@@ -470,13 +470,13 @@ def run_p53():
         net_p53,
         p53_reference_g,
         TightLoss(k=1),
-        steps_evolve=10,
+        steps_evolve=5,
         hidden_dim=1024,
-        n_adv_samples=2**13,
-        n_rand_samples=2**13,
-        max_n=3000,
-        n_epochs=10_000,
-        lr=1e-3,
+        n_adv_samples=2**14,
+        n_rand_samples=2**14,
+        max_n=2000,
+        n_epochs=20_000,
+        lr=5e-4,
         output_path=model_dir,
     )
     plot_loss_traj(h_loss, h_dmax)
@@ -554,7 +554,7 @@ if __name__ == "__main__":
             run_schloegl()
         case "parbd":
             print(10 * "#" + " Parallel BD", file=sys.stderr)
-            plot_parbd_sizes([run_parbd(k) for k in [0.1, 1, 10, 100]])
+            plot_parbd_sizes([run_parbd(k) for k in [0.5, 1, 10, 100]])
         case "comp":
             print(10 * "#" + " Competition", file=sys.stderr)
             run_competition()
