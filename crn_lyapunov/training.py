@@ -110,6 +110,8 @@ def train_tight_sets(
     output_path: Path = None,
 ):
     torch.manual_seed(seed)
+    model_path = output_path / "model.pt"
+    adversary_path = output_path / "adversary_pop.pt"
     n_species = network.num_species
     adv = Adversary(network, n_species, max_n, population_size=n_adv_samples)
     if sampler is None:
@@ -126,6 +128,7 @@ def train_tight_sets(
 
     optimizer = optim.Adam(lyap_model.parameters(), lr=lr, **optimizer_kwargs)
     history_loss, history_dmax = [], []
+    best_loss = float('inf')
 
     for epoch in (pbar := tqdm.tqdm(range(n_epochs))):
         try:
@@ -148,33 +151,38 @@ def train_tight_sets(
             pbar.set_description(f"Loss: {loss.item():.4e} | max D: {dmax:.4e}")
             history_loss.append(loss.item())
             history_dmax.append(dmax)
+            if loss.item() < best_loss:
+                best_loss = loss.item()
+                output_path.mkdir(exist_ok=True, parents=True)
+                torch.save(lyap_model.state_dict(), model_path)
+                torch.save(adv.population, adversary_path)
 
         except KeyboardInterrupt:
             print("Training interrupted by user.", file=sys.stderr)
             break
 
-    if output_path is not None:
-        output_path.mkdir(exist_ok=True, parents=True)
-        torch.save(lyap_model.state_dict(), output_path / "model.pt")
-        torch.save(adv.population, output_path / "adversary_pop.pt")
-        with open(output_path / "history_loss.npy", "wb") as f:
-            np.save(f, np.array(history_loss))
-        with open(output_path / "history_dmax.npy", "wb") as f:
-            np.save(f, np.array(history_loss))
+    with open(output_path / "history_loss.npy", "wb") as f:
+        np.save(f, np.array(history_loss))
+    with open(output_path / "history_dmax.npy", "wb") as f:
+        np.save(f, np.array(history_loss))
 
-        settings = dict(
-            n_adv_samples=n_adv_samples,
-            n_rand_samples=n_rand_samples,
-            max_n=max_n,
-            n_epochs=n_epochs,
-            steps_evolve=steps_evolve,
-            hidden_dim=hidden_dim,
-            lr=lr,
-            seed=seed,
-            non_negative=non_negative,
-            loss_fn=str(loss_fn),
-        )
-        with open(output_path / "settings.json", "w") as f:
-            json.dump(settings, f, skipkeys=True)
+    settings = dict(
+        n_adv_samples=n_adv_samples,
+        n_rand_samples=n_rand_samples,
+        max_n=max_n,
+        n_epochs=n_epochs,
+        steps_evolve=steps_evolve,
+        hidden_dim=hidden_dim,
+        lr=lr,
+        seed=seed,
+        non_negative=non_negative,
+        loss_fn=str(loss_fn),
+    )
+    with open(output_path / "settings.json", "w") as f:
+        json.dump(settings, f, skipkeys=True)
+
+    
+    lyap_model.load_state_dict(torch.load(model_path, weights_only=True))
+    adv = torch.load(adversary_path)
 
     return lyap_model, adv, history_loss, history_dmax

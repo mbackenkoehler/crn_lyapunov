@@ -61,7 +61,7 @@ def run_birth_death():
     def quadratic_ref(x):
         return x**2
 
-    model, adv, history, history_dmax = train_tight_sets(
+    model, adv_pop, history, history_dmax = train_tight_sets(
         net,
         quadratic_ref,
         TightLoss(k=1),
@@ -95,7 +95,7 @@ def run_birth_death():
     savefig(model_dir, "setsizes.pdf")
 
     axes = plot_drift_1d(
-        1000, model, quadratic_ref, net, adv_population=adv.population, figsize=(8, 2)
+        1000, model, quadratic_ref, net, adv_population=adv_pop, figsize=(8, 2)
     )
     axes[0].set_yscale("log")
     axes[1].set_ylim(-10, 0.7)
@@ -138,7 +138,7 @@ def run_schloegl():
     def quadratic_ref(x):
         return x**2
 
-    model, adv, history, history_dmax = train_tight_sets(
+    model, adv_pop, history, history_dmax = train_tight_sets(
         net,
         quadratic_ref,
         TightLoss(),
@@ -168,7 +168,7 @@ def run_schloegl():
     plt.savefig(model_dir / "setsizes.pdf")
 
     plot_drift_1d(
-        600, model, quadratic_ref, net, adv_population=adv.population, figsize=(8, 2)
+        600, model, quadratic_ref, net, adv_population=adv_pop, figsize=(8, 2)
     )
     savefig(model_dir, "overview.pdf", dpi=350)
 
@@ -487,10 +487,10 @@ def run_p53():
 
     with torch.no_grad():
         drift = (
-            get_drift(model_p53, net_p53, adv_p53.population.to(device)).cpu().numpy()
+            get_drift(model_p53, net_p53, adv_p53.to(device)).cpu().numpy()
         )
 
-    points = adv_p53.population.detach().cpu().numpy()
+    points = adv_p53.detach().cpu().numpy()
 
     sc = ax.scatter(
         points[:, 0],

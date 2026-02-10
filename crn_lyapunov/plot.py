@@ -166,7 +166,7 @@ def plot_drift_2d(
     plt.colorbar(label="Drift Value")
 
     if adversary is not None:
-        points_lv = adversary.population.detach().cpu().numpy()
+        points_lv = adversary.detach().cpu().numpy()
         plt.scatter(
             points_lv[:, 0],
             points_lv[:, 1],
