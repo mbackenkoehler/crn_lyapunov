@@ -151,8 +151,8 @@ def train_tight_sets(
             pbar.set_description(f"Loss: {loss.item():.4e} | max D: {dmax:.4e}")
             history_loss.append(loss.item())
             history_dmax.append(dmax)
-            if loss.item() < best_loss:
-                best_loss = loss.item()
+            if dmax < best_loss:
+                best_loss = dmax
                 output_path.mkdir(exist_ok=True, parents=True)
                 torch.save(lyap_model.state_dict(), model_path)
                 torch.save(adv.population, adversary_path)
