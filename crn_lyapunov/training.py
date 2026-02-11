@@ -108,6 +108,7 @@ def train_tight_sets(
     non_negative: bool = False,
     sampler: Callable = None,
     output_path: Path = None,
+    warmup: int = 1000,
 ):
     torch.manual_seed(seed)
     model_path = output_path / "model.pt"
@@ -164,7 +165,7 @@ def train_tight_sets(
     with open(output_path / "history_loss.npy", "wb") as f:
         np.save(f, np.array(history_loss))
     with open(output_path / "history_dmax.npy", "wb") as f:
-        np.save(f, np.array(history_loss))
+        np.save(f, np.array(history_dmax))
 
     settings = dict(
         n_adv_samples=n_adv_samples,
