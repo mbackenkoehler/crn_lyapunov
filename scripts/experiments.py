@@ -318,9 +318,9 @@ def run_competition():
         steps_evolve=5,
         hidden_dim=512,
         n_adv_samples=2**10,
-        n_rand_samples=2**13,
+        n_rand_samples=2**10,
         max_n=1500,
-        n_epochs=200_000,
+        n_epochs=20_000,
         lr=5e-4,
         output_path=model_dir,
     )
@@ -354,7 +354,6 @@ def run_competition():
         min_eps=-8,
         num_points=1000,
         log_prob=False,
-        dmax=dmax_ref,
     )
     savefig(model_dir, "hist2d_ref.pdf")
 
@@ -367,7 +366,6 @@ def run_competition():
         min_eps=-8,
         num_points=1000,
         log_prob=True,
-        dmax=dmax_ref,
     )
     savefig(model_dir, "hist2d_log_ref.pdf")
 
@@ -380,7 +378,6 @@ def run_competition():
         min_eps=-8,
         num_points=1000,
         log_prob=False,
-        dmax=dmax_aug,
     )
     savefig(model_dir, "hist2d.pdf")
 
@@ -393,7 +390,6 @@ def run_competition():
         min_eps=-8,
         num_points=1000,
         log_prob=True,
-        dmax=dmax_aug,
     )
     savefig(model_dir, "hist2d_log.pdf")
 

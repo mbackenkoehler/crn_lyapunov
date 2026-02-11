@@ -132,5 +132,5 @@ def performance_table(
             f.write(f"{max_drift_ref}")
 
     if return_dmax:
-        return performance_df, max_drift_aug.item(), max_drift_ref.item()
+        return performance_df, float(max_drift_aug), float(max_drift_ref)
     return performance_df

@@ -194,7 +194,7 @@ def hist_2d(model, net, x_range, y_range, min_eps, dmax):
     drift_heatmap_data = grid_drift.reshape(num_points, num_points) / dmax
     cum_prob = np.zeros_like(drift_heatmap_data)
 
-    for eps in np.logspace(min_eps, 0, 100):
+    for eps in np.logspace(min_eps, 0, 1000):
         cum_prob[np.where(drift_heatmap_data * eps > eps - 1)] = eps
 
     return cum_prob
