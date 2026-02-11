@@ -108,7 +108,7 @@ def train_tight_sets(
     non_negative: bool = False,
     sampler: Callable = None,
     output_path: Path = None,
-    warmup: int = 1000,
+    warmup: int = 5000,
 ):
     torch.manual_seed(seed)
     model_path = output_path / "model.pt"
@@ -152,7 +152,7 @@ def train_tight_sets(
             pbar.set_description(f"Loss: {loss.item():.4e} | max D: {dmax:.4e}")
             history_loss.append(loss.item())
             history_dmax.append(dmax)
-            if dmax < best_loss:
+            if dmax < best_loss and epoch > warmup:
                 best_loss = dmax
                 output_path.mkdir(exist_ok=True, parents=True)
                 torch.save(lyap_model.state_dict(), model_path)
