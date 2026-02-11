@@ -55,6 +55,7 @@ def performance_table(
     min_eps=-4,
     chunk_size=1_000_000,
     output_dir=None,
+    return_dmax=False,
 ):
     total_states = np.prod(ranges)
     epsilons = torch.logspace(min_eps, 0, 20).to(device)
@@ -102,6 +103,7 @@ def performance_table(
                     min_eps=min_eps,
                     chunk_size=chunk_size,
                     output_dir=output_dir,
+                    return_dmax=return_dmax,
                 )
 
             counts_aug += (
@@ -129,4 +131,6 @@ def performance_table(
         with open(output_dir / "dmax_ref", "w") as f:
             f.write(f"{max_drift_ref}")
 
+    if return_dmax:
+        return performance_df, max_drift_aug, max_drift_ref
     return performance_df

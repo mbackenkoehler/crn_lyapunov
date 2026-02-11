@@ -181,6 +181,64 @@ def plot_drift_2d(
     plt.legend()
 
 
+def hist_2d(model, net, x_range, y_range, min_eps, dmax):
+    assert len(x_range) == len(y_range)
+    num_points = len(x_range)
+    x_mesh, y_mesh = torch.meshgrid(x_range, y_range, indexing="xy")
+
+    x_grid = torch.stack([x_mesh.flatten(), y_mesh.flatten()], dim=1).float().to(device)
+
+    with torch.no_grad():
+        grid_drift = get_drift(model, net, x_grid).detach().cpu().numpy()
+
+    drift_heatmap_data = grid_drift.reshape(num_points, num_points) / dmax
+    cum_prob = np.zeros_like(drift_heatmap_data)
+
+    for eps in np.logspace(min_eps, 0, 100):
+        cum_prob[np.where(drift_heatmap_data * eps > eps - 1)] = eps
+
+    return cum_prob
+
+
+def plot_hist_2d_comp(
+    model,
+    net,
+    x_max,
+    y_max,
+    dmax_aug,
+    dmax_ref,
+    min_eps=-4,
+    num_points=300,
+    log_prob=False,
+):
+    x_range = torch.linspace(0, x_max, min(x_max, num_points))
+    y_range = torch.linspace(0, y_max, min(y_max, num_points))
+
+    fig, (ax1, ax2) = plt.subplots(1, 2, sharey=True, figsize=(9, 4))
+    for ax, dmax, model in [(ax1, dmax_aug, model), (ax2, dmax_ref, model.reference_g)]:
+        cum_prob = hist_2d(model, net, x_range, y_range, min_eps, dmax)
+        im = ax.imshow(
+            np.log(cum_prob) if log_prob else cum_prob,
+            origin="lower",
+            extent=[
+                float(x_range.min()),
+                float(x_range.max()),
+                float(y_range.min()),
+                float(y_range.max()),
+            ],
+            cmap="viridis",
+            aspect="equal",
+        )
+
+        ax.set_xlabel("X")
+    ax1.set_ylabel("Y")
+    cbar = fig.colorbar(
+        im, ax=[ax1, ax2], label="log Probability" if log_prob else "Probability"
+    )
+
+    return fig, (ax1, ax2)
+
+
 def plot_hist_2d(
     model,
     net,
@@ -191,21 +249,9 @@ def plot_hist_2d(
     num_points=300,
     log_prob=False,
 ):
-    x_range = torch.linspace(0, x_max, num_points)
-    y_range = torch.linspace(0, y_max, num_points)
-
-    x_mesh, y_mesh = torch.meshgrid(x_range, y_range, indexing="xy")
-
-    x_grid = torch.stack([x_mesh.flatten(), y_mesh.flatten()], dim=1).float().to(device)
-
-    with torch.no_grad():
-        grid_drift = get_drift(model, net, x_grid).detach().cpu().numpy()
-
-    drift_heatmap_data = grid_drift.reshape(num_points, num_points) / grid_drift.max()
-    cum_prob = np.zeros_like(drift_heatmap_data)
-
-    for eps in np.logspace(min_eps, 0, 100):
-        cum_prob[np.where(drift_heatmap_data * eps > eps - 1)] = eps
+    x_range = torch.linspace(0, x_max, min(x_max, num_points))
+    y_range = torch.linspace(0, y_max, min(y_max, num_points))
+    cum_prob = hist_2d(model, net, x_range, y_range, min_eps, dmax)
 
     ax = plt.imshow(
         np.log(cum_prob) if log_prob else cum_prob,

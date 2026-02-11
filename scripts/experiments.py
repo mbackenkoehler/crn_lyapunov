@@ -16,6 +16,7 @@ from crn_lyapunov.plot import (
     plot_level_set_comparison,
     plot_drift_2d,
     plot_hist_2d,
+    plot_hist_2d_comp,
     plot_performances,
 )
 from crn_lyapunov.utils import performance_table, get_drift, device
@@ -42,9 +43,10 @@ def ensure_dir(d: Path):
     d.mkdir(parents=True, exist_ok=True)
 
 
-def savefig(model_dir: Path, name: str, dpi=300):
+def savefig(model_dir: Path, name: str, dpi=300, tight=True):
     ensure_dir(model_dir)
-    plt.tight_layout()
+    if tight:
+        plt.tight_layout()
     plt.savefig(model_dir / name, dpi=dpi)
     plt.close()
 
@@ -79,7 +81,7 @@ def run_birth_death():
     plot_loss_traj(history, history_dmax)
     savefig(model_dir, "optimization.pdf")
 
-    sizes = performance_table(
+    sizes, dmax_aug, dmax_ref = performance_table(
         model,
         net,
         quadratic_ref,
@@ -87,6 +89,7 @@ def run_birth_death():
         max_drift_ref=20300,
         min_eps=-9,
         output_dir=model_dir,
+        return_dmax=True,
     )
 
     fig, ax = plt.subplots(figsize=(4, 3))
@@ -209,7 +212,7 @@ def run_parbd(k=1):
 
     plot_drift_2d(model_parbd, net_parbd, 300, 300, log_drift=True, adversary=adv_parbd)
     savefig(model_dir, "drift2d.pdf")
-    sizes = performance_table(
+    sizes, dmax_aug, dmax_ref = performance_table(
         model_parbd,
         net_parbd,
         ref_g,
@@ -219,11 +222,38 @@ def run_parbd(k=1):
         chunk_size=1_000_000,
         min_eps=-3,
         output_dir=model_dir,
+        return_dmax=True,
     )
     fig, ax = plt.subplots(figsize=(4, 3))
     plot_performances(sizes, ax=ax)
     ax.set_xlabel("Threshold $\\epsilon$")
     savefig(model_dir, "setsizes.pdf")
+
+    plot_hist_2d_comp(
+        model_parbd,
+        net_parbd,
+        300,
+        300,
+        dmax_aug,
+        dmax_ref,
+        min_eps=-8,
+        num_points=1000,
+        log_prob=True,
+    )
+    savefig(model_dir, "hist2d_comp_log.pdf", tight=False)
+
+    plot_hist_2d_comp(
+        model_parbd,
+        net_parbd,
+        300,
+        300,
+        dmax_aug,
+        dmax_ref,
+        min_eps=-8,
+        num_points=1000,
+        log_prob=False,
+    )
+    savefig(model_dir, "hist2d_comp.pdf", tight=False)
 
     return sizes
 
@@ -298,7 +328,7 @@ def run_competition():
     plot_loss_traj(h_loss, h_dmax)
     savefig(model_dir, "loss.pdf")
 
-    sizes = performance_table(
+    sizes, dmax_aug, dmax_ref = performance_table(
         model_comp,
         net_comp,
         ref_g,
@@ -308,6 +338,7 @@ def run_competition():
         chunk_size=1_000_000,
         min_eps=-3,
         output_dir=model_dir,
+        return_dmax=True,
     )
     fig, ax = plt.subplots(figsize=(4, 3))
     plot_performances(sizes, ax=ax)
@@ -319,10 +350,11 @@ def run_competition():
         net_comp,
         1500,
         1500,
-        4e2,
+        dmax_ref,
         min_eps=-8,
         num_points=1000,
         log_prob=False,
+        dmax=dmax_ref,
     )
     savefig(model_dir, "hist2d_ref.pdf")
 
@@ -331,10 +363,11 @@ def run_competition():
         net_comp,
         1500,
         1500,
-        4e2,
+        dmax_ref,
         min_eps=-8,
         num_points=1000,
         log_prob=True,
+        dmax=dmax_ref,
     )
     savefig(model_dir, "hist2d_log_ref.pdf")
 
@@ -343,10 +376,11 @@ def run_competition():
         net_comp,
         1500,
         1500,
-        4e2,
+        dmax_aug,
         min_eps=-8,
         num_points=1000,
         log_prob=False,
+        dmax=dmax_aug,
     )
     savefig(model_dir, "hist2d.pdf")
 
@@ -355,12 +389,39 @@ def run_competition():
         net_comp,
         1500,
         1500,
-        4e2,
+        dmax_aug,
+        min_eps=-8,
+        num_points=1000,
+        log_prob=True,
+        dmax=dmax_aug,
+    )
+    savefig(model_dir, "hist2d_log.pdf")
+
+    plot_hist_2d_comp(
+        model_comp,
+        net_comp,
+        1500,
+        1500,
+        dmax_aug,
+        dmax_ref,
         min_eps=-8,
         num_points=1000,
         log_prob=True,
     )
-    savefig(model_dir, "hist2d_log.pdf")
+    savefig(model_dir, "hist2d_comp_log.pdf", tight=False)
+
+    plot_hist_2d_comp(
+        model_comp,
+        net_comp,
+        1500,
+        1500,
+        dmax_aug,
+        dmax_ref,
+        min_eps=-8,
+        num_points=1000,
+        log_prob=False,
+    )
+    savefig(model_dir, "hist2d_comp.pdf", tight=False)
 
     plot_drift_2d(model_comp, net_comp, 1500, 1500, log_drift=True, adversary=adv_comp)
     savefig(model_dir, "drift2d.pdf")
@@ -396,7 +457,7 @@ def run_toggle():
     plot_loss_traj(h_loss, h_dmax)
     savefig(model_dir, "loss.pdf")
 
-    sizes = performance_table(
+    sizes, dmax_aug, dmax_ref = performance_table(
         model_toggle,
         net_toggle,
         ref_g,
@@ -404,9 +465,36 @@ def run_toggle():
         min_eps=-3,
         chunk_size=10_000,
         output_dir=model_dir,
+        return_dmax=True,
     )
     plot_performances(sizes)
     savefig(model_dir, "performance.pdf")
+
+    plot_hist_2d_comp(
+        model_toggle,
+        net_toggle,
+        750,
+        750,
+        dmax_aug,
+        dmax_ref,
+        min_eps=-8,
+        num_points=1000,
+        log_prob=True,
+    )
+    savefig(model_dir, "hist2d_comp_log.pdf", tight=False)
+
+    plot_hist_2d_comp(
+        model_toggle,
+        net_toggle,
+        750,
+        750,
+        dmax_aug,
+        dmax_ref,
+        min_eps=-8,
+        num_points=1000,
+        log_prob=False,
+    )
+    savefig(model_dir, "hist2d_comp.pdf", tight=False)
 
     plot_drift_2d(
         model_toggle, net_toggle, 750, 750, log_drift=True, adversary=adv_toggle
@@ -486,9 +574,7 @@ def run_p53():
     ax = fig.add_subplot(111, projection="3d")
 
     with torch.no_grad():
-        drift = (
-            get_drift(model_p53, net_p53, adv_p53.to(device)).cpu().numpy()
-        )
+        drift = get_drift(model_p53, net_p53, adv_p53.to(device)).cpu().numpy()
 
     points = adv_p53.detach().cpu().numpy()
 
