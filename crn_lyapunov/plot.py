@@ -14,7 +14,7 @@ from .utils import device, get_drift
 def plot_loss_traj(h_loss, h_dmax):
     fig, ax = plt.subplots()
     ax.plot(h_loss, label="loss", lw=1)
-    ax.set_yscale("log")
+    # ax.set_yscale("log")
     ax.set_ylabel("Loss")
     tax = ax.twinx()
     tax.plot(h_dmax, label="max", c="r", lw=1)

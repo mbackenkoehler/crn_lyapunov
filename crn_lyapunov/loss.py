@@ -75,14 +75,34 @@ class TightLoss(DriftLoss):
         self._mask = None
         self.k = k
 
+    # def forward(self, drift_combined: torch.Tensor, xs: torch.Tensor) -> torch.Tensor:
+    #     d_norm = self._norm(drift_combined)
+    #     if self.n_adv is not None:
+    #         if self._mask is None:
+    #             self._mask = torch.ones(len(drift_combined), device=xs.device)
+    #             self._mask[: self.n_adv] = self.adv_weight
+    #         d_norm = d_norm * self._mask
+    #     loss = torch.mean(torch.exp(self.k * d_norm.clamp_max(1.0)))
+    #     return loss
     def forward(self, drift_combined: torch.Tensor, xs: torch.Tensor) -> torch.Tensor:
         d_norm = self._norm(drift_combined)
+
+        # Apply weighting/masking
         if self.n_adv is not None:
             if self._mask is None:
                 self._mask = torch.ones(len(drift_combined), device=xs.device)
                 self._mask[: self.n_adv] = self.adv_weight
+            # Apply weight directly to the drift before the exponential logic
             d_norm = d_norm * self._mask
-        loss = torch.mean(torch.exp(self.k * d_norm.clamp_max(1.0)))
+
+        # Semantics: Minimize the 'Soft Maximum' of the drift.
+        # torch.logsumexp is numerically stable and prevents underflow/overflow.
+        # We subtract log(N) to turn LogSumExp into LogMeanExp.
+        k_drift = self.k * d_norm.clamp_max(1.0)
+        loss = torch.logsumexp(k_drift, dim=0) - torch.log(
+            torch.tensor(len(d_norm), dtype=torch.float, device=xs.device)
+        )
+
         return loss
 
     def __str__(self):
