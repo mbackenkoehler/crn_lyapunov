@@ -111,6 +111,7 @@ def train_tight_sets(
     warmup: int = 5000,
 ):
     torch.manual_seed(seed)
+    output_path.mkdir(exist_ok=True)
     model_path = output_path / "model.pt"
     adversary_path = output_path / "adversary_pop.pt"
     n_species = network.num_species
@@ -129,7 +130,7 @@ def train_tight_sets(
 
     optimizer = optim.Adam(lyap_model.parameters(), lr=lr, **optimizer_kwargs)
     history_loss, history_dmax = [], []
-    best_loss = float('inf')
+    best_loss = float("inf")
 
     for epoch in (pbar := tqdm.tqdm(range(n_epochs))):
         try:
@@ -182,7 +183,6 @@ def train_tight_sets(
     with open(output_path / "settings.json", "w") as f:
         json.dump(settings, f, skipkeys=True)
 
-    
     lyap_model.load_state_dict(torch.load(model_path, weights_only=True))
     adv = torch.load(adversary_path)
 
