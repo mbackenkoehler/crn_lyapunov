@@ -32,7 +32,7 @@ from crn_lyapunov.crn import (
 sns.set_context("paper")
 sns.set_style("white")
 
-OUTPUT = Path("output")
+OUTPUT = Path("output_logloss")
 OUTPUT.mkdir(exist_ok=True)
 
 
@@ -66,7 +66,7 @@ def run_birth_death():
     model, adv_pop, history, history_dmax = train_tight_sets(
         net,
         quadratic_ref,
-        TightLoss(k=1),
+        TightLoss(k=5),
         n_adv_samples=16,
         n_rand_samples=16,
         max_n=700,
@@ -144,7 +144,7 @@ def run_schloegl():
     model, adv_pop, history, history_dmax = train_tight_sets(
         net,
         quadratic_ref,
-        TightLoss(),
+        TightLoss(k=5),
         steps_evolve=5,
         n_adv_samples=8,
         n_rand_samples=8,
@@ -259,7 +259,7 @@ def run_parbd(k=1):
 
 
 def plot_parbd_sizes(sizes_all):
-    sizes_p1, sizes_1, sizes_10, sizes_100 = sizes_all
+    sizes_p1, sizes_1, sizes_5, sizes_10 = sizes_all
     plt.figure(figsize=(4, 3))
     plt.plot(
         sizes_p1["epsilon"],
@@ -276,19 +276,26 @@ def plot_parbd_sizes(sizes_all):
         label=r"k=1",
     )
     plt.plot(
+        sizes_5["epsilon"],
+        sizes_5["size_ref"] / sizes_5["size_aug"],
+        "xb:",
+        lw=1,
+        label=r"k=5",
+    )
+    plt.plot(
         sizes_10["epsilon"],
         sizes_10["size_ref"] / sizes_10["size_aug"],
-        "xb:",
+        "2g:",
         lw=1,
         label=r"k=10",
     )
-    plt.plot(
-        sizes_100["epsilon"],
-        sizes_100["size_ref"] / sizes_100["size_aug"],
-        "2g:",
-        lw=1,
-        label=r"k=100",
-    )
+    # plt.plot(
+        # sizes_100["epsilon"],
+        # sizes_100["size_ref"] / sizes_100["size_aug"],
+        # "2g:",
+        # lw=1,
+        # label=r"k=100",
+    # )
     plt.xscale("log")
     plt.yscale("log")
     plt.ylabel("improvement ratio")
@@ -314,13 +321,13 @@ def run_competition():
     model_comp, adv_comp, h_loss, h_dmax = train_tight_sets(
         net_comp,
         ref_g,
-        TightLoss(k=1),
+        TightLoss(k=5, gamma=0.99),
         steps_evolve=5,
         hidden_dim=512,
-        n_adv_samples=2**10,
-        n_rand_samples=2**10,
-        max_n=1500,
-        n_epochs=20_000,
+        n_adv_samples=2**13,
+        n_rand_samples=2**13,
+        max_n=2000,
+        n_epochs=1_000_000,
         lr=5e-4,
         output_path=model_dir,
     )
@@ -332,7 +339,7 @@ def run_competition():
         model_comp,
         net_comp,
         ref_g,
-        [10_000, 10_000],
+        [15_000, 15_000],
         max_drift_ref=0,
         max_drift_aug=0,
         chunk_size=1_000_000,
@@ -439,13 +446,13 @@ def run_toggle():
     model_toggle, adv_toggle, h_loss, h_dmax = train_tight_sets(
         net_toggle,
         ref_g,
-        TightLoss(k=1),
+        TightLoss(k=5),
         steps_evolve=5,
-        hidden_dim=2048,
-        n_adv_samples=2**10,
-        n_rand_samples=2**10,
+        hidden_dim=512,
+        n_adv_samples=2**12,
+        n_rand_samples=2**12,
         max_n=1000,
-        n_epochs=10_000,
+        n_epochs=100_000,
         lr=5e-4,
         output_path=model_dir,
     )
@@ -457,7 +464,7 @@ def run_toggle():
         model_toggle,
         net_toggle,
         ref_g,
-        [1_000, 1_000],
+        [15_000, 15_000],
         min_eps=-3,
         chunk_size=10_000,
         output_dir=model_dir,
@@ -545,7 +552,7 @@ def run_p53():
         weights = torch.tensor([120.0, 0.2, 0.1], device=x.device)
         return torch.sum(weights * x, dim=1, keepdim=True)
 
-    model_dir = OUTPUT / "p53"
+    model_dir = OUTPUT / "p53" / "complex"
     ensure_dir(model_dir)
 
     net_p53 = P53Oscillator()
@@ -553,11 +560,11 @@ def run_p53():
     model_p53, adv_p53, h_loss, h_dmax = train_tight_sets(
         net_p53,
         p53_reference_g,
-        TightLoss(k=1),
+        TightLoss(k=5),
         steps_evolve=5,
-        hidden_dim=1024,
-        n_adv_samples=2**14,
-        n_rand_samples=2**14,
+        hidden_dim=2048,
+        n_adv_samples=2**16,
+        n_rand_samples=2**16,
         max_n=2000,
         n_epochs=20_000,
         lr=5e-4,
@@ -636,7 +643,7 @@ if __name__ == "__main__":
             run_schloegl()
         case "parbd":
             print(10 * "#" + " Parallel BD", file=sys.stderr)
-            plot_parbd_sizes([run_parbd(k) for k in [0.5, 1, 10, 100]])
+            plot_parbd_sizes([run_parbd(k) for k in [0.5, 1, 5, 10]])
         case "comp":
             print(10 * "#" + " Competition", file=sys.stderr)
             run_competition()
