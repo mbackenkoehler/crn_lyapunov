@@ -64,6 +64,7 @@ class MaxDrift(DriftLoss):
 class TightLoss(DriftLoss):
     def __init__(
         self,
+        log_loss: bool = True,
         gamma: float = 0.99,
         n_adv: int = None,
         adv_weight: float = 1.0,
@@ -71,44 +72,32 @@ class TightLoss(DriftLoss):
     ):
         super().__init__(gamma)
         self.n_adv = n_adv
+        self.log_loss = log_loss
         self.adv_weight = adv_weight
         self._mask = None
         self.k = k
 
-    # def forward(self, drift_combined: torch.Tensor, xs: torch.Tensor) -> torch.Tensor:
-    #     d_norm = self._norm(drift_combined)
-    #     if self.n_adv is not None:
-    #         if self._mask is None:
-    #             self._mask = torch.ones(len(drift_combined), device=xs.device)
-    #             self._mask[: self.n_adv] = self.adv_weight
-    #         d_norm = d_norm * self._mask
-    #     loss = torch.mean(torch.exp(self.k * d_norm.clamp_max(1.0)))
-    #     return loss
     def forward(self, drift_combined: torch.Tensor, xs: torch.Tensor) -> torch.Tensor:
         d_norm = self._norm(drift_combined)
 
-        # Apply weighting/masking
         if self.n_adv is not None:
             if self._mask is None:
                 self._mask = torch.ones(len(drift_combined), device=xs.device)
                 self._mask[: self.n_adv] = self.adv_weight
-            # Apply weight directly to the drift before the exponential logic
             d_norm = d_norm * self._mask
 
-        # Semantics: Minimize the 'Soft Maximum' of the drift.
-        # torch.logsumexp is numerically stable and prevents underflow/overflow.
-        # We subtract log(N) to turn LogSumExp into LogMeanExp.
-        k_drift = self.k * d_norm.clamp_max(1.0)
-        loss = torch.logsumexp(k_drift, dim=0) - torch.log(
-            torch.tensor(len(d_norm), dtype=torch.float, device=xs.device)
-        )
+        if self.log_loss:
+            k_drift = self.k * d_norm.clamp_max(1.0)
+            loss = torch.logsumexp(k_drift, dim=0) - torch.log(
+                torch.tensor(len(d_norm), dtype=torch.float, device=xs.device)
+            )
+        else:
+            loss = torch.mean(torch.exp(self.k * d_norm.clamp_max(1.0)))
 
         return loss
 
     def __str__(self):
-        return (
-            f"TightLoss(k={self.k}, adv_weight={self.adv_weight}, gamma={self.gamma})"
-        )
+        return f"TightLoss(k={self.k}, adv_weight={self.adv_weight}, gamma={self.gamma}, log_loss={self.log_loss})"
 
 
 class PropertyLoss(DriftLoss):
