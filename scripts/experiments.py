@@ -27,6 +27,7 @@ from crn_lyapunov.crn import (
     Competition,
     Toggle,
     ReactionNetwork,
+    P53Oscillator,
 )
 
 sns.set_context("paper")
@@ -290,11 +291,11 @@ def plot_parbd_sizes(sizes_all):
         label=r"k=10",
     )
     # plt.plot(
-        # sizes_100["epsilon"],
-        # sizes_100["size_ref"] / sizes_100["size_aug"],
-        # "2g:",
-        # lw=1,
-        # label=r"k=100",
+    # sizes_100["epsilon"],
+    # sizes_100["size_ref"] / sizes_100["size_aug"],
+    # "2g:",
+    # lw=1,
+    # label=r"k=100",
     # )
     plt.xscale("log")
     plt.yscale("log")
@@ -505,70 +506,31 @@ def run_toggle():
     savefig(model_dir, "drift2d.pdf")
 
 
-def run_p53():
-    class P53Oscillator(ReactionNetwork):
-        def __init__(self):
-            # Species Order: [p53, pMdm2, Mdm2]
-            # 0 -> p53           [1, 0, 0]
-            # p53 -> 0           [-1, 0, 0]
-            # p53 -> p53+pMdm2   [0, 1, 0]
-            # p53 -> 0 (alpha4)  [-1, 0, 0]
-            # pMdm2 -> Mdm2      [0, -1, 1]
-            # Mdm2 -> 0          [0, 0, -1]
-            S = torch.tensor(
-                [
-                    [1.0, 0.0, 0.0],
-                    [-1.0, 0.0, 0.0],
-                    [0.0, 1.0, 0.0],
-                    [-1.0, 0.0, 0.0],
-                    [0.0, -1.0, 1.0],
-                    [0.0, 0.0, -1.0],
-                ]
-            )
-            super().__init__(S, self._propensities)
-
-            # Parameters
-            self.k1, self.k2, self.k3 = 90.0, 0.002, 1.7
-            self.k4, self.k5, self.k6 = 1.1, 0.93, 0.96
-            self.k7 = 0.01
-
-        def _propensities(self, x):
-            p53, pMdm2, Mdm2 = x[:, 0:1], x[:, 1:2], x[:, 2:3]
-
-            return torch.cat(
-                [
-                    torch.full_like(p53, self.k1),  # k1
-                    self.k2 * p53,  # k2
-                    self.k4 * p53,  # k4
-                    self.k3 * Mdm2 * (p53 / (p53 + self.k7)),
-                    self.k5 * pMdm2,  # k5
-                    self.k6 * Mdm2,  # k6
-                ],
-                dim=1,
-            )
+def run_p53(model_dir=OUTPUT / "p53", **kwargs):
+    ensure_dir(model_dir)
 
     def p53_reference_g(x):
         # g(x) = 120*p53 + 0.2*pMdm2 + 0.1*Mdm2
         weights = torch.tensor([120.0, 0.2, 0.1], device=x.device)
         return torch.sum(weights * x, dim=1, keepdim=True)
 
-    model_dir = OUTPUT / "p53" / "complex"
-    ensure_dir(model_dir)
-
     net_p53 = P53Oscillator()
 
+    opts = (
+        dict(
+            steps_evolve=5,
+            hidden_dim=1024,
+            n_adv_samples=2**14,
+            n_rand_samples=2**14,
+            max_n=2000,
+            n_epochs=20_000,
+            lr=5e-4,
+        )
+        | kwargs
+    )
+
     model_p53, adv_p53, h_loss, h_dmax = train_tight_sets(
-        net_p53,
-        p53_reference_g,
-        TightLoss(k=5),
-        steps_evolve=5,
-        hidden_dim=2048,
-        n_adv_samples=2**16,
-        n_rand_samples=2**16,
-        max_n=2000,
-        n_epochs=20_000,
-        lr=5e-4,
-        output_path=model_dir,
+        net_p53, p53_reference_g, TightLoss(k=5), output_path=model_dir, **opts
     )
     plot_loss_traj(h_loss, h_dmax)
     savefig(model_dir, "loss.pdf")
@@ -653,5 +615,21 @@ if __name__ == "__main__":
         case "p53":
             print(10 * "#" + " p53", file=sys.stderr)
             run_p53()
+        case "p53_simple":
+            print(10 * "#" + " p53 simple", file=sys.stderr)
+            run_p53(
+                model_dir=OUTPUT / "p53" / "small",
+                hidden_dim=512,
+                n_adv_samples=2**13,
+                n_rand_samples=2**13,
+            )
+        case "p53_complex":
+            print(10 * "#" + " p53 complex", file=sys.stderr)
+            run_p53(
+                model_dir=OUTPUT / "p53" / "small",
+                hidden_dim=2048,
+                n_adv_samples=2**16,
+                n_rand_samples=2**16,
+            )
         case _:
             print("unknown experiment:", sys.argv[1], file=sys.stderr)
