@@ -96,7 +96,7 @@ def performance_table(
             d_ref = get_drift(ref_g, net, chunk).unsqueeze(1)
             if d_aug.max() > max_d_aug or d_ref.max() > max_d_ref:
                 pbar2.close()
-                print(f"Larger max drift - Restarting...", file=sys.stderr)
+                print("Larger max drift - Restarting...", file=sys.stderr)
                 return performance_table(
                     model,
                     net,
