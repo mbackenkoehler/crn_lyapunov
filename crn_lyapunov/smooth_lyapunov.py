@@ -37,7 +37,6 @@ class SmoothLyapunov(nn.Module):
                 nn.init.kaiming_normal_(m.weight, a=0.1)
                 nn.init.constant_(m.bias, 0)
 
-
     def _get_mixing_weight(self, ref_val):
         magnitude = torch.sqrt(torch.clamp(ref_val, min=1e-6))
         alpha = torch.sigmoid(

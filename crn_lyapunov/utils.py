@@ -18,15 +18,19 @@ device = torch.device(
 
 def get_drift(model, network, x):
     g_x = model(x)
+    if g_x.ndim == 1:
+        g_x = g_x.unsqueeze(1)
 
-    drift = g_x * 0.0
-
+    drift = torch.zeros_like(g_x)
     rates = network.propensities(x)
 
     for j in range(network.num_reactions):
         v_j = network.S[j]
         x_next = torch.clamp(x + v_j, min=0)
+
         g_next = model(x_next)
+        if g_next.ndim == 1:
+            g_next = g_next.unsqueeze(1)
 
         drift = drift + rates[:, j : j + 1] * (g_next - g_x)
 

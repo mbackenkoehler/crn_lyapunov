@@ -1,4 +1,5 @@
 from collections.abc import Callable, Iterable
+from functools import partial
 
 import torch
 import numpy as np
@@ -6,6 +7,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.colors as colors
 import seaborn as sns
+import tqdm.auto as tqdm
 
 from .crn import ReactionNetwork
 from .utils import device, get_drift
@@ -181,21 +183,37 @@ def plot_drift_2d(
     plt.legend()
 
 
-def hist_2d(model, net, x_range, y_range, min_eps, dmax):
+def hist_2d(fun, x_range, y_range, min_eps, dmax):
     assert len(x_range) == len(y_range)
     num_points = len(x_range)
-    x_mesh, y_mesh = torch.meshgrid(x_range, y_range, indexing="xy")
 
+    x_mesh, y_mesh = torch.meshgrid(x_range, y_range, indexing="xy")
     x_grid = torch.stack([x_mesh.flatten(), y_mesh.flatten()], dim=1).float().to(device)
 
+    batch_size = 2**15
+    outputs = []
+
     with torch.no_grad():
-        grid_drift = get_drift(model, net, x_grid).detach().cpu().numpy()
+        for i in tqdm.tqdm(range(0, len(x_grid), batch_size)):
+            batch = x_grid[i : i + batch_size]
 
-    drift_heatmap_data = grid_drift.reshape(num_points, num_points) / dmax
-    cum_prob = np.zeros_like(drift_heatmap_data)
+            # drift = get_drift(model, net, batch)
+            drift = fun(batch)
 
-    for eps in np.logspace(min_eps, 0, 1000):
-        cum_prob[np.where(drift_heatmap_data * eps > eps - 1)] = eps
+            if drift.ndim == 1:
+                drift = drift.unsqueeze(1)
+
+            outputs.append(drift.cpu())
+
+    drift_map = torch.cat(outputs, dim=0).numpy().reshape(num_points, num_points)
+    drift_map = drift_map / dmax
+
+    cum_prob = np.zeros_like(drift_map)
+
+    eps_values = np.logspace(min_eps, 0, 1000)
+    for eps in eps_values:
+        mask = drift_map * eps > eps - 1
+        cum_prob[mask] = eps
 
     return cum_prob
 
@@ -207,18 +225,52 @@ def plot_hist_2d_comp(
     y_max,
     dmax_aug,
     dmax_ref,
+    show_lya=False,
     min_eps=-4,
     num_points=300,
     log_prob=False,
+    size=5,
 ):
+    import matplotlib.gridspec as gridspec
+
     x_range = torch.linspace(0, x_max, min(x_max, num_points))
     y_range = torch.linspace(0, y_max, min(y_max, num_points))
 
-    fig, (ax1, ax2) = plt.subplots(1, 2, sharey=True, figsize=(9, 4))
-    for ax, dmax, model in [(ax1, dmax_aug, model), (ax2, dmax_ref, model.reference_g)]:
-        cum_prob = hist_2d(model, net, x_range, y_range, min_eps, dmax)
+    rows = 2 if show_lya else 1
+
+    fig = plt.figure(figsize=(2 * size, size * rows))
+    gs = gridspec.GridSpec(
+        rows,
+        3,
+        width_ratios=[1, 1, 0.05],
+        height_ratios=[1] * rows,
+        wspace=0.15,
+        hspace=0.2,
+    )
+
+    ax1 = fig.add_subplot(gs[0, 0])
+    ax2 = fig.add_subplot(gs[0, 1], sharex=ax1, sharey=ax1)
+    cax12 = fig.add_subplot(gs[0, 2])
+
+    if show_lya:
+        ax3 = fig.add_subplot(gs[1, 0], sharex=ax1, sharey=ax1)
+        ax4 = fig.add_subplot(gs[1, 1], sharex=ax1, sharey=ax1)
+        cax34 = fig.add_subplot(gs[1, 2])
+    else:
+        ax3 = ax4 = cax34 = None
+
+    drift_plots = [
+        (ax1, dmax_aug, partial(get_drift, model, net)),
+        (ax2, dmax_ref, partial(get_drift, model.reference_g, net)),
+    ]
+
+    shared_im = None
+    for ax, dmax, fun in drift_plots:
+        cum_prob = hist_2d(fun, x_range, y_range, min_eps, dmax)
+        data = np.log(cum_prob) if log_prob else cum_prob
+
         im = ax.imshow(
-            np.log(cum_prob) if log_prob else cum_prob,
+            data,
             origin="lower",
             extent=[
                 float(x_range.min()),
@@ -229,12 +281,64 @@ def plot_hist_2d_comp(
             cmap="viridis",
             aspect="equal",
         )
+        shared_im = im
 
-        ax.set_xlabel("X")
-    ax1.set_ylabel("Y")
-    cbar = fig.colorbar(
-        im, ax=[ax1, ax2], label="log Probability" if log_prob else "Probability"
+    fig.colorbar(
+        shared_im, cax=cax12, label="log Probability" if log_prob else "Probability"
     )
+
+    ax1.set_title("Augmented Histogram")
+    ax2.set_title("Reference Histogram")
+    ax1.set_ylabel("Y")
+
+    if show_lya:
+        x_mesh, y_mesh = torch.meshgrid(x_range, y_range, indexing="xy")
+        x_grid = torch.stack([x_mesh.flatten(), y_mesh.flatten()], dim=1).float()
+
+        lya_plots = [
+            (ax3, model),
+            (ax4, model.reference_g),
+        ]
+
+        shared_im_lya = None
+
+        for ax, fun in lya_plots:
+            with torch.no_grad():
+                vals = fun(x_grid)
+                if vals.ndim == 1:
+                    vals = vals.unsqueeze(1)
+
+            data = vals.reshape(len(x_range), len(y_range)).cpu().numpy()
+
+            im = ax.imshow(
+                np.log(data),
+                origin="lower",
+                extent=[
+                    float(x_range.min()),
+                    float(x_range.max()),
+                    float(y_range.min()),
+                    float(y_range.max()),
+                ],
+                cmap="viridis",
+                aspect="equal",
+            )
+            shared_im_lya = im
+
+        fig.colorbar(shared_im_lya, cax=cax34, label="log Lyapunov")
+
+        ax3.set_title("Augmented Lyapunov")
+        ax4.set_title("Reference Lyapunov")
+        ax3.set_ylabel("Y")
+        ax3.set_xlabel("X")
+        ax4.set_xlabel("X")
+    else:
+        ax1.set_xlabel("X")
+        ax2.set_xlabel("X")
+
+    ax2.tick_params(left=False, labelleft=False)
+
+    if show_lya:
+        ax4.tick_params(left=False, labelleft=False)
 
     return fig, (ax1, ax2)
 
@@ -251,7 +355,8 @@ def plot_hist_2d(
 ):
     x_range = torch.linspace(0, x_max, min(x_max, num_points))
     y_range = torch.linspace(0, y_max, min(y_max, num_points))
-    cum_prob = hist_2d(model, net, x_range, y_range, min_eps, dmax)
+    fun = partial(get_drift, model, net)
+    cum_prob = hist_2d(fun, x_range, y_range, min_eps, dmax)
 
     ax = plt.imshow(
         np.log(cum_prob) if log_prob else cum_prob,
